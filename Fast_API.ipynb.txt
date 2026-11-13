@@ -1,0 +1,471 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "eo9tH7p0ek-l"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install -q fastapi uvicorn pyngrok nest_asyncio"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true,
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "qOtQC_7EjJ3O",
+        "outputId": "fa63bf30-338c-4603-ae43-94596d1bcf9a"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Overwriting app.py\n"
+          ]
+        }
+      ],
+      "source": [
+        "%%writefile app.py\n",
+        "import joblib\n",
+        "import pandas as pd\n",
+        "from fastapi import FastAPI\n",
+        "from fastapi.responses import HTMLResponse\n",
+        "from pydantic import BaseModel\n",
+        "\n",
+        "app = FastAPI(title=\"Loan Approval Predictor\")\n",
+        "\n",
+        "model = joblib.load(\"\")\n",
+        "prep = joblib.load(\"/content/preprocessor.pkl\")\n",
+        "\n",
+        "class Applicant(BaseModel):\n",
+        "    Age: float\n",
+        "    Gender: str\n",
+        "    Marital_Status: str\n",
+        "    Education: str\n",
+        "    Employment_Type: str\n",
+        "    City: str\n",
+        "    Years_Experience: float\n",
+        "    Monthly_Income: float\n",
+        "    Loan_Amount: float\n",
+        "    Credit_Score: float\n",
+        "\n",
+        "@app.post(\"/predict\")\n",
+        "def predict(data: Applicant):\n",
+        "    df = pd.DataFrame([data.dict()])\n",
+        "    X = prep.transform(df)\n",
+        "    prob = float(model.predict_proba(X)[0][1])\n",
+        "    return {\"approved\": prob >= 0.5, \"probability\": round(prob * 100, 1)}\n",
+        "\n",
+        "HTML = \"\"\"\n",
+        "<!DOCTYPE html>\n",
+        "<html>\n",
+        "<head>\n",
+        "<meta charset=\"utf-8\">\n",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n",
+        "<title>Loan Approval Predictor</title>\n",
+        "<style>\n",
+        "*{box-sizing:border-box;margin:0;padding:0}\n",
+        "body{\n",
+        "  min-height:100vh;\n",
+        "  font-family:'Segoe UI',Roboto,Arial,sans-serif;\n",
+        "  background:linear-gradient(135deg,#1e1b4b,#4c1d95 50%,#be185d);\n",
+        "  background-attachment:fixed;\n",
+        "  color:#fff;\n",
+        "  padding:20px 14px 40px;\n",
+        "}\n",
+        ".blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.45;z-index:-1}\n",
+        ".b1{width:260px;height:260px;background:#22d3ee;top:-60px;left:-60px}\n",
+        ".b2{width:300px;height:300px;background:#f472b6;bottom:-80px;right:-80px}\n",
+        ".card{\n",
+        "  max-width:480px;margin:auto;padding:24px 20px;\n",
+        "  background:rgba(255,255,255,.1);\n",
+        "  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);\n",
+        "  border:1px solid rgba(255,255,255,.22);\n",
+        "  border-radius:26px;\n",
+        "  box-shadow:0 20px 50px rgba(0,0,0,.35);\n",
+        "}\n",
+        ".logo{font-size:46px;text-align:center}\n",
+        "h1{\n",
+        "  text-align:center;font-size:26px;margin-top:4px;\n",
+        "  background:linear-gradient(90deg,#67e8f9,#c4b5fd,#f9a8d4);\n",
+        "  -webkit-background-clip:text;background-clip:text;color:transparent;\n",
+        "}\n",
+        ".sub{text-align:center;font-size:13px;color:#ddd6fe;margin:6px 0 10px}\n",
+        ".section{\n",
+        "  margin-top:20px;font-size:14px;font-weight:700;letter-spacing:.5px;\n",
+        "  color:#a5f3fc;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px;\n",
+        "}\n",
+        ".grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}\n",
+        ".full{grid-column:1 / -1}\n",
+        "label{display:block;margin-top:12px;font-size:12px;color:#e9d5ff}\n",
+        "input,select{\n",
+        "  width:100%;margin-top:5px;padding:12px;font-size:15px;color:#fff;\n",
+        "  background:rgba(255,255,255,.1);\n",
+        "  border:1px solid rgba(255,255,255,.25);border-radius:12px;outline:none;\n",
+        "  transition:.2s;\n",
+        "}\n",
+        "input:focus,select:focus{border-color:#67e8f9;box-shadow:0 0 0 3px rgba(103,232,249,.3)}\n",
+        "option{background:#1e1b4b;color:#fff}\n",
+        "input[type=range]{padding:0;height:8px;accent-color:#f472b6;background:transparent;border:0}\n",
+        ".score{display:flex;justify-content:space-between;align-items:center}\n",
+        "#scoreVal{\n",
+        "  font-weight:700;font-size:16px;color:#fff;\n",
+        "  background:linear-gradient(90deg,#8b5cf6,#ec4899);\n",
+        "  padding:2px 12px;border-radius:20px;\n",
+        "}\n",
+        "button{\n",
+        "  width:100%;margin-top:26px;padding:15px;border:0;border-radius:14px;\n",
+        "  font-size:17px;font-weight:700;color:#fff;cursor:pointer;\n",
+        "  background:linear-gradient(90deg,#06b6d4,#8b5cf6,#ec4899);\n",
+        "  box-shadow:0 10px 25px rgba(139,92,246,.5);\n",
+        "  transition:.2s;\n",
+        "}\n",
+        "button:active{transform:scale(.97)}\n",
+        "#result{display:none;margin-top:24px;padding:20px;border-radius:20px;text-align:center}\n",
+        ".ok{background:linear-gradient(135deg,rgba(16,185,129,.35),rgba(5,150,105,.2));border:1px solid #34d399}\n",
+        ".no{background:linear-gradient(135deg,rgba(239,68,68,.35),rgba(185,28,28,.2));border:1px solid #f87171}\n",
+        ".ring{\n",
+        "  --p:0;--c:#34d399;\n",
+        "  width:140px;height:140px;border-radius:50%;margin:auto;\n",
+        "  display:flex;align-items:center;justify-content:center;\n",
+        "  background:conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.15) 0);\n",
+        "}\n",
+        ".inner{\n",
+        "  width:108px;height:108px;border-radius:50%;background:#2a1a5e;\n",
+        "  display:flex;flex-direction:column;align-items:center;justify-content:center;\n",
+        "}\n",
+        ".pct{font-size:28px;font-weight:800}\n",
+        ".small{font-size:11px;color:#ddd6fe}\n",
+        "#status{margin-top:14px;font-size:22px;font-weight:800}\n",
+        "#msg{margin-top:4px;font-size:13px;color:#e9d5ff}\n",
+        ".foot{text-align:center;margin-top:18px;font-size:11px;color:#c4b5fd}\n",
+        "</style>\n",
+        "</head>\n",
+        "<body>\n",
+        "<div class=\"blob b1\"></div><div class=\"blob b2\"></div>\n",
+        "\n",
+        "<div class=\"card\">\n",
+        "  <div class=\"logo\">🏦</div>\n",
+        "  <h1>Loan Approval Predictor</h1>\n",
+        "  <p class=\"sub\">AI-powered instant loan decision</p>\n",
+        "\n",
+        "  <div class=\"section\">👤 Personal Details</div>\n",
+        "  <div class=\"grid\">\n",
+        "    <div><label>Age<input id=\"Age\" type=\"number\" value=\"35\"></label></div>\n",
+        "    <div><label>Gender<select id=\"Gender\"><option>Male</option><option>Female</option></select></label></div>\n",
+        "    <div><label>Marital Status<select id=\"Marital_Status\"><option>Single</option><option>Married</option><option>Divorced</option></select></label></div>\n",
+        "    <div><label>City<select id=\"City\"><option>Karak</option><option>Kohat</option><option>Peshawar</option><option>Lahore</option><option>Islamabad</option></select></label></div>\n",
+        "  </div>\n",
+        "\n",
+        "  <div class=\"section\">💼 Work and Education</div>\n",
+        "  <div class=\"grid\">\n",
+        "    <div><label>Education<select id=\"Education\"><option>Matric</option><option>Intermediate</option><option selected>Bachelors</option><option>Masters</option></select></label></div>\n",
+        "    <div><label>Employment<select id=\"Employment_Type\"><option>Salaried</option><option>Self-Employed</option><option>Business</option><option>Unemployed</option></select></label></div>\n",
+        "    <div class=\"full\"><label>Years of Experience<input id=\"Years_Experience\" type=\"number\" value=\"10\"></label></div>\n",
+        "  </div>\n",
+        "\n",
+        "  <div class=\"section\">💰 Finance</div>\n",
+        "  <div class=\"grid\">\n",
+        "    <div><label>Monthly Income<input id=\"Monthly_Income\" type=\"number\" value=\"150000\"></label></div>\n",
+        "    <div><label>Loan Amount<input id=\"Loan_Amount\" type=\"number\" value=\"500000\"></label></div>\n",
+        "    <div class=\"full\">\n",
+        "      <label>\n",
+        "        <div class=\"score\"><span>Credit Score</span><span id=\"scoreVal\">700</span></div>\n",
+        "        <input id=\"Credit_Score\" type=\"range\" min=\"300\" max=\"850\" value=\"700\">\n",
+        "      </label>\n",
+        "    </div>\n",
+        "  </div>\n",
+        "\n",
+        "  <button id=\"btn\" onclick=\"send()\">✨ Check Approval</button>\n",
+        "\n",
+        "  <div id=\"result\">\n",
+        "    <div class=\"ring\" id=\"ring\"><div class=\"inner\"><div class=\"pct\" id=\"pct\">0%</div><div class=\"small\">approval chance</div></div></div>\n",
+        "    <div id=\"status\"></div>\n",
+        "    <div id=\"msg\"></div>\n",
+        "  </div>\n",
+        "\n",
+        "  <div class=\"foot\">Built with FastAPI and Random Forest 🌲</div>\n",
+        "</div>\n",
+        "\n",
+        "<script>\n",
+        "const slider = document.getElementById(\"Credit_Score\");\n",
+        "slider.oninput = function(){ document.getElementById(\"scoreVal\").innerText = slider.value; };\n",
+        "\n",
+        "async function send(){\n",
+        "  const ids = [\"Age\",\"Gender\",\"Marital_Status\",\"Education\",\"Employment_Type\",\"City\",\"Years_Experience\",\"Monthly_Income\",\"Loan_Amount\",\"Credit_Score\"];\n",
+        "  const nums = [\"Age\",\"Years_Experience\",\"Monthly_Income\",\"Loan_Amount\",\"Credit_Score\"];\n",
+        "  const body = {};\n",
+        "  ids.forEach(function(id){\n",
+        "    const v = document.getElementById(id).value;\n",
+        "    body[id] = nums.includes(id) ? parseFloat(v) : v;\n",
+        "  });\n",
+        "\n",
+        "  const btn = document.getElementById(\"btn\");\n",
+        "  btn.innerText = \"⏳ Analyzing...\";\n",
+        "  try{\n",
+        "    const r = await fetch(\"/predict\", {\n",
+        "      method:\"POST\",\n",
+        "      headers:{\"Content-Type\":\"application/json\"},\n",
+        "      body:JSON.stringify(body)\n",
+        "    });\n",
+        "    const d = await r.json();\n",
+        "    const box = document.getElementById(\"result\");\n",
+        "    const ring = document.getElementById(\"ring\");\n",
+        "    box.style.display = \"block\";\n",
+        "    box.className = d.approved ? \"ok\" : \"no\";\n",
+        "    ring.style.setProperty(\"--p\", d.probability);\n",
+        "    ring.style.setProperty(\"--c\", d.approved ? \"#34d399\" : \"#f87171\");\n",
+        "    document.getElementById(\"pct\").innerText = d.probability + \"%\";\n",
+        "    document.getElementById(\"status\").innerText = d.approved ? \"✅ Loan Approved\" : \"❌ Loan Rejected\";\n",
+        "    document.getElementById(\"msg\").innerText = d.approved\n",
+        "      ? \"Strong profile. This application looks good.\"\n",
+        "      : \"Risk is high for this profile. Try a lower loan amount.\";\n",
+        "    box.scrollIntoView({behavior:\"smooth\"});\n",
+        "  }catch(e){\n",
+        "    alert(\"Error: could not reach the server.\");\n",
+        "  }\n",
+        "  btn.innerText = \"✨ Check Approval\";\n",
+        "}\n",
+        "</script>\n",
+        "</body>\n",
+        "</html>\n",
+        "\"\"\"\n",
+        "\n",
+        "@app.get(\"/\", response_class=HTMLResponse)\n",
+        "def home():\n",
+        "    return HTML"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "V0PZumpoe-4w",
+        "outputId": "815dddeb-f7f0-4dd2-8530-952ea4ae8368"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Auth token already configured. Continuing...\n",
+            "Open this link: https://chaos-parameter-flint.ngrok-free.dev\n"
+          ]
+        },
+        {
+          "data": {
+            "text/plain": [
+              "<Task pending name='Task-1' coro=<Server.serve() running at /usr/local/lib/python3.13/dist-packages/uvicorn/server.py:88>>"
+            ]
+          },
+          "execution_count": 2,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "import nest_asyncio, uvicorn, asyncio\n",
+        "from pyngrok import ngrok, exception\n",
+        "from app import app\n",
+        "\n",
+        "# Set auth token and handle cases where it's already set\n",
+        "try:\n",
+        "    ngrok.set_auth_token(\"NGROK TOKEN\")\n",
+        "except exception.PyngrokNgrokError:\n",
+        "    print(\"Auth token already configured. Continuing...\")\n",
+        "\n",
+        "url = ngrok.connect(8000)\n",
+        "print(\"Open this link:\", url.public_url)\n",
+        "\n",
+        "# Apply the nest_asyncio patch\n",
+        "nest_asyncio.apply()\n",
+        "\n",
+        "# Configure and run the server using the existing running loop\n",
+        "config = uvicorn.Config(app, host=\"127.0.0.1\", port=8000, loop=\"asyncio\")\n",
+        "server = uvicorn.Server(config)\n",
+        "\n",
+        "# Run the server on the existing loop\n",
+        "loop = asyncio.get_event_loop()\n",
+        "loop.create_task(server.serve())"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "JOC0t91xjG05",
+        "outputId": "de1b00b0-aca9-4d1d-e175-d7e1e20d09de"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "sample_data\n"
+          ]
+        }
+      ],
+      "source": [
+        "!ls"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "u2tRBtEypwx7",
+        "outputId": "c7764990-1b93-422e-cae7-c966bbf0c8cc"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "cp: cannot stat 'app.py': No such file or directory\n",
+            "cp: cannot stat 'loan_model.pkl': No such file or directory\n",
+            "cp: cannot stat 'preprocessor.pkl': No such file or directory\n",
+            "cp: cannot stat 'fill_values.pkl': No such file or directory\n",
+            "cp: cannot stat 'loan_data.csv': No such file or directory\n",
+            "fastapi==0.141.1\n",
+            "joblib==1.6.0\n",
+            "numpy==2.4.6\n",
+            "pandas==2.2.3\n",
+            "pydantic==2.14.2\n",
+            "scikit-learn==1.6.1\n",
+            "uvicorn==0.54.0\n"
+          ]
+        }
+      ],
+      "source": [
+        "!mkdir -p loan-approval-predictor\n",
+        "!cp app.py loan_model.pkl preprocessor.pkl fill_values.pkl loan_data.csv loan-approval-predictor/\n",
+        "!pip freeze | grep -i -E \"^(fastapi|uvicorn|scikit-learn|pandas|numpy|joblib|pydantic)==\" > loan-approval-predictor/requirements.txt\n",
+        "!cat loan-approval-predictor/requirements.txt"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "zgSmcysVqJkB",
+        "outputId": "cab4e864-fe67-4fc9-f0d8-47f528f08e66"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Writing loan-approval-predictor/README.md\n"
+          ]
+        }
+      ],
+      "source": [
+        "%%writefile loan-approval-predictor/README.md\n",
+        "# Loan Approval Predictor\n",
+        "\n",
+        "A machine learning project that predicts loan approval from applicant details, served as a FastAPI app with a glass-style web UI.\n",
+        "\n",
+        "## What I practiced\n",
+        "- Data cleaning: duplicates, dirty text, outliers (IQR)\n",
+        "- Missing values: median and mode, learned from train data only\n",
+        "- Encoding: ordinal (Education) and one-hot (other columns)\n",
+        "- Scaling: StandardScaler\n",
+        "- Models: Logistic Regression (75%) vs Random Forest (87%)\n",
+        "\n",
+        "## Tech\n",
+        "Python, pandas, scikit-learn, FastAPI, ngrok, HTML/CSS/JS\n",
+        "\n",
+        "## Run\n",
+        "1. `pip install -r requirements.txt`\n",
+        "2. `uvicorn app:app --port 8000`\n",
+        "3. Open `http://localhost:8000` (API docs at `/docs`)\n",
+        "\n",
+        "## Note\n",
+        "`loan_data.csv` is synthetic data made for practice."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Vg0lrkeqqaKw",
+        "outputId": "8acab937-d2dd-4f6b-beae-2def2586a286"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "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··········\n",
+            "/content/loan-approval-predictor\n",
+            "Enumerating objects: 4, done.\n",
+            "Counting objects: 100% (4/4), done.\n",
+            "Delta compression using up to 2 threads\n",
+            "Compressing objects: 100% (4/4), done.\n",
+            "Writing objects: 100% (4/4), 836 bytes | 836.00 KiB/s, done.\n",
+            "Total 4 (delta 0), reused 0 (delta 0), pack-reused 0\n",
+            "To https://github.com/rafaqatkhattak5/loan-approval-predictor.git\n",
+            " * [new branch]      main -> main\n",
+            "branch 'main' set up to track 'origin/main'.\n",
+            "/content\n"
+          ]
+        }
+      ],
+      "source": [
+        "from getpass import getpass\n",
+        "token = getpass(\"GitHub Token\")\n",
+        "user = \"rafaqatkhattak5\"\n",
+        "\n",
+        "%cd loan-approval-predictor\n",
+        "!git init -q\n",
+        "!git config user.name \"YOUR_NAME\"\n",
+        "!git config user.email \"YOUR_EMAIL\"\n",
+        "!git add .\n",
+        "!git commit -q -m \"Loan approval predictor with FastAPI\"\n",
+        "!git branch -M main\n",
+        "!git remote add origin https://{user}:{token}@github.com/{user}/loan-approval-predictor.git\n",
+        "!git push -u origin main\n",
+        "!git remote remove origin\n",
+        "%cd .."
+      ]
+    }
+  ],
+  "metadata": {
+    "accelerator": "GPU",
+    "colab": {
+      "gpuType": "T4",
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
