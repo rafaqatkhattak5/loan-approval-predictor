@@ -18,4 +18,4 @@ Python, pandas, scikit-learn, FastAPI, ngrok, HTML/CSS/JS
 3. Open `http://localhost:8000` (API docs at `/docs`)
 
 ## Note
-`loan_data.csv` is synthetic data made for practice.
+The dataset was generated with code (synthetic data made for practice).
