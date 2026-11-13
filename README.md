@@ -2,6 +2,8 @@
 
 A machine learning project that predicts loan approval from applicant details, served as a FastAPI app with a glass-style web UI.
 
+https://github.com/rafaqatkhattak5/loan-approval-predictor/blob/main/Screenshot.jpg
+
 ## What I practiced
 - Data cleaning: duplicates, dirty text, outliers (IQR)
 - Missing values: median and mode, learned from train data only
